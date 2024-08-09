@@ -1,12 +1,15 @@
 package codecrafters_redis
 
-import java.net.{InetSocketAddress, ServerSocket, Socket}
+import java.net.{ServerSocket, Socket}
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.io.BufferedSource
 import scala.util.Using
 
 object Server {
+  private val storage: TrieMap[String, String] = TrieMap()
+
   def main(args: Array[String]): Unit = {
     val serverSocket = new ServerSocket(6379)
     println("Server is running on port 6379")
@@ -24,9 +27,18 @@ object Server {
     ) { (source, outputStream) =>
       while (source != null) {
         val bulkStr = Parser.parse(source)
+        println(bulkStr)
         val response = bulkStr.cmd match {
-          case "echo" => s"$$${bulkStr.value1.length}\r\n${bulkStr.value1}\r\n"
           case "ping" => "+PONG\r\n"
+          case "echo" => s"$$${bulkStr.value1.length}\r\n${bulkStr.value1}\r\n"
+          case "set" =>
+            storage.put(bulkStr.value1, bulkStr.value2)
+            "+OK\r\n"
+          case "get" =>
+            storage.get(bulkStr.value1) match {
+              case Some(value) => s"$$${value.length}\r\n$value\r\n"
+              case None => "$-1\r\n" // RESP format for nil
+            }
           case _ => "-ERR unknown command\r\n"
         }
         outputStream.write(response.getBytes)
