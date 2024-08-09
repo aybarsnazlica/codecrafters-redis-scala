@@ -27,7 +27,7 @@ object Server {
     ) { (source, outputStream) =>
       while (source != null) {
         val bulkStr = Parser.parse(source)
-        println(bulkStr)
+
         val response = bulkStr.cmd match {
           case "ping" => "+PONG\r\n"
           case "echo" => s"$$${bulkStr.value1.length}\r\n${bulkStr.value1}\r\n"
